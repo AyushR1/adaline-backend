@@ -5,7 +5,7 @@ import { setupWebSocket } from "./websocket";
 
 // Express server
 const app = express();
-const port = 3000;
+const port = 5000;
 
 // Serve static files
 app.use(express.static("public"));
