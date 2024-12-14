@@ -29,7 +29,7 @@ export const setupWebSocket = (server: Server) => {
 
     ws.on("message", (data) => {
       const message = JSON.parse(data.toString());
-      const { type, userId, item,folder } = message;
+      const { type, userId, item,folder, itemId,folderId,newOrder  } = message;
       console.log(message)
       switch (type) {
         case "join":
@@ -53,7 +53,7 @@ export const setupWebSocket = (server: Server) => {
           break;
 
         case "move_item":
-          handleMoveItem(userId, item);
+          handleMoveItem(userId,  itemId,folderId,newOrder );
           break;
 
         case "move_folder":
@@ -89,7 +89,6 @@ export const setupWebSocket = (server: Server) => {
 
   const handleAddItem = (userId: string, item: Item) => {
     // Logic to save item to the database
-    console.log('aaaaaaaaaaaaaaaa', item)
     broadcastToRoom(userId, { type: "add_item", item });
   };
 
@@ -100,7 +99,7 @@ export const setupWebSocket = (server: Server) => {
 
   const handleAddFolder = (userId: string, folder: Folder) => {
     // Logic to save folder to the database
-    broadcastToRoom(userId, { type: "add_folder", folder });
+    broadcastToRoom(userId, { type: "add_folder", item_type: 'folder', folder });
   };
 
   const handleDeleteFolder = (userId: string, folderId: string) => {
@@ -108,7 +107,7 @@ export const setupWebSocket = (server: Server) => {
     broadcastToRoom(userId, { type: "delete_folder", folderId });
   };
 
-  const handleMoveItem = (userId: string, { itemId, folderId, newOrder }: { itemId: string; folderId: string | null; newOrder: number }) => {
+  const handleMoveItem = (userId: string,  itemId: string, folderId: string | null, newOrder: number ) => {
     // Logic to update item's folder and order
     broadcastToRoom(userId, { type: "move_item", itemId, folderId, newOrder });
   };
