@@ -6,23 +6,19 @@ interface Item {
   id: string;
   name: string;
   icon: string;
-  order?: Decimal | null;
+  order?: Decimal | Number | null;
   item_type: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface Folder {
   id: string;
   name: string;
-  order?: Decimal | null;
+  order?: Decimal | Number |  null;
   userId?: string;
   collapsed?: boolean;
   folder_id?: string | null;
   children?: Folder[] | Item[] | null | undefined;
   item_type?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const buildFolderHierarchy = async (
@@ -38,10 +34,15 @@ const buildFolderHierarchy = async (
       subFolders: true,
     },
   });
-  const itemsWithItemType = folder?.items.map((item) => ({
-    ...item,
-    item_type: 'item',
-  })) || [];
+
+  const itemsWithItemType =
+    folder?.items.map((item) => ({
+      ...item,
+      item_type: 'item',
+      order: item.order ? new Number(item.order) : null,
+      children: [],
+    })) || [];
+
   if (!folder) return null;
 
   const subFoldersChildren = await Promise.all(
@@ -53,14 +54,13 @@ const buildFolderHierarchy = async (
   return {
     id: folder.id,
     name: folder.name,
-    order: folder.order,
+    order: folder.order ? new Number(folder.order) : null, 
     collapsed: folder.collapsed,
-    createdAt: folder.createdAt,
-    updatedAt: folder.updatedAt,
     item_type: 'folder',
     children: [...subFoldersChildren, ...itemsWithItemType] as any,
   };
 };
+
 export const getItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.query.user_id as string;
@@ -85,6 +85,8 @@ export const getItem = async (req: Request, res: Response): Promise<void> => {
     const itemsWithItemType = standaloneItems.map((item) => ({
       ...item,
       item_type: 'item',
+      collapsed: false,
+      childern: [],
     }));
     console.log('itemsWithItemType', itemsWithItemType);
     res.status(200).json([...hierarchy, ...itemsWithItemType]);
