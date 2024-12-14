@@ -6,10 +6,11 @@ type UserRoom = {
 };
 export type Item = {
   id: string;
-  text: string;
+  name: string;
   icon: string;
   order: number;
   folder_id: string | null;
+  userId: string;
 };
 
 export type Folder = {
@@ -17,6 +18,7 @@ export type Folder = {
   name: string;
   order: number;
   parent_folder: string | null;
+  userId: string;
 };
 
 const userRooms: Record<string, WebSocket[]> = {};
@@ -40,25 +42,14 @@ export const setupWebSocket = (server: Server) => {
           handleAddItem(userId, item);
           break;
 
-        case "delete_item":
-          handleDeleteItem(userId, item);
-          break;
-
         case "add_folder":
           handleAddFolder(userId, folder);
-          break;
-
-        case "delete_folder":
-          handleDeleteFolder(userId, folder);
           break;
 
         case "move_item":
           handleMoveItem(userId,  itemId,folderId,newOrder );
           break;
 
-        case "move_folder":
-          handleMoveFolder(userId, item);
-          break;
 
         default:
           console.log(`Unknown message type: ${type}`);
@@ -92,19 +83,9 @@ export const setupWebSocket = (server: Server) => {
     broadcastToRoom(userId, { type: "add_item", item });
   };
 
-  const handleDeleteItem = (userId: string, itemId: string) => {
-    // Logic to delete item from the database
-    broadcastToRoom(userId, { type: "delete_item", itemId });
-  };
-
   const handleAddFolder = (userId: string, folder: Folder) => {
     // Logic to save folder to the database
     broadcastToRoom(userId, { type: "add_folder", item_type: 'folder', folder });
-  };
-
-  const handleDeleteFolder = (userId: string, folderId: string) => {
-    // Logic to delete folder and handle cascading deletion of items or subfolders
-    broadcastToRoom(userId, { type: "delete_folder", folderId });
   };
 
   const handleMoveItem = (userId: string,  itemId: string, folderId: string | null, newOrder: number ) => {
@@ -112,10 +93,6 @@ export const setupWebSocket = (server: Server) => {
     broadcastToRoom(userId, { type: "move_item", itemId, folderId, newOrder });
   };
 
-  const handleMoveFolder = (userId: string, { folderId, parentFolderId, newOrder }: { folderId: string; parentFolderId: string | null; newOrder: number }) => {
-    // Logic to update folder's parent and order
-    broadcastToRoom(userId, { type: "move_folder", folderId, parentFolderId, newOrder });
-  };
 
   const cleanUpUserRooms = (ws: WebSocket) => {
     for (const userId in userRooms) {
