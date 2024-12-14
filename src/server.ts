@@ -2,10 +2,15 @@ import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { setupWebSocket } from "./websocket";
+import itemRoutes from './routes/itemRoutes';
+import cors from 'cors';
 
 // Express server
 const app = express();
 const port = 5000;
+
+// Enable CORS
+app.use(cors());
 
 // Serve static files
 app.use(express.static("public"));
@@ -15,6 +20,7 @@ const server = createServer(app);
 
 // Initialize WebSocket server
 setupWebSocket(server);
+app.use('/items', itemRoutes);
 
 // Start server
 server.listen(port, () => {

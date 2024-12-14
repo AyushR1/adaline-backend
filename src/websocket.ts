@@ -1,9 +1,11 @@
-import { Server } from "http";
-import { WebSocket, WebSocketServer } from "ws";
+import { Server } from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
+import { prisma } from './utlis/prisma';
 
 type UserRoom = {
-  [userId: string]: WebSocket[]; // Multiple connections per user
+  [userId: string]: WebSocket[];
 };
+
 export type Item = {
   id: string;
   name: string;
@@ -11,13 +13,14 @@ export type Item = {
   order: number;
   folder_id: string | null;
   userId: string;
+  item_type?: string;
 };
 
 export type Folder = {
   id: string;
   name: string;
   order: number;
-  parent_folder: string | null;
+  folder_id: string | null;
   userId: string;
 };
 
@@ -26,38 +29,38 @@ const userRooms: Record<string, WebSocket[]> = {};
 export const setupWebSocket = (server: Server) => {
   const wss = new WebSocketServer({ server });
 
-  wss.on("connection", (ws: WebSocket) => {
-    console.log("Client connected.");
+  wss.on('connection', (ws: WebSocket) => {
+    console.log('Client connected.');
 
-    ws.on("message", (data) => {
+    ws.on('message', async (data) => {
       const message = JSON.parse(data.toString());
-      const { type, userId, item,folder, itemId,folderId,newOrder  } = message;
-      console.log(message)
+      const { type, userId, item, folder, itemId, folderId, newOrder } =
+        message;
+
       switch (type) {
-        case "join":
-          handleJoin(userId, ws);
+        case 'join':
+          await handleJoin(userId, ws);
           break;
 
-        case "add_item":
-          handleAddItem(userId, item);
+        case 'add_item':
+          await handleAddItem(userId, item);
           break;
 
-        case "add_folder":
-          handleAddFolder(userId, folder);
+        case 'add_folder':
+          await handleAddFolder(userId, folder);
           break;
 
-        case "move_item":
-          handleMoveItem(userId,  itemId,folderId,newOrder );
+        case 'move_item':
+          await handleMoveItem(userId, itemId, folderId, newOrder);
           break;
-
 
         default:
           console.log(`Unknown message type: ${type}`);
       }
     });
 
-    ws.on("close", () => {
-      console.log("Client disconnected.");
+    ws.on('close', () => {
+      console.log('Client disconnected.');
       cleanUpUserRooms(ws);
     });
   });
@@ -65,12 +68,25 @@ export const setupWebSocket = (server: Server) => {
   const broadcastToRoom = (userId: string, message: object) => {
     const sockets = userRooms[userId] || [];
     for (const socket of sockets) {
-      console.log('aaaaaaaaaaaaaaaa')
       socket.send(JSON.stringify(message));
     }
   };
 
-  const handleJoin = (userId: string, ws: WebSocket) => {
+  const handleJoin = async (userId: string, ws: WebSocket) => {
+    let user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      // Create a new user if not already present
+      user = await prisma.user.create({
+        data: {
+          id: userId,
+        },
+      });
+      console.log(`User ${userId} created.`);
+    }
+
     if (!userRooms[userId]) {
       userRooms[userId] = [];
     }
@@ -78,21 +94,78 @@ export const setupWebSocket = (server: Server) => {
     console.log(`User ${userId} joined.`);
   };
 
-  const handleAddItem = (userId: string, item: Item) => {
-    // Logic to save item to the database
-    broadcastToRoom(userId, { type: "add_item", item });
+  const handleAddItem = async (userId: string, item: Item) => {
+    let existingItem = await prisma.item.findUnique({
+      where: { id: item.id },
+    });
+
+    if (!existingItem) {
+      await prisma.item.create({
+        data: {
+          id: item.id,
+          name: item.name,
+          order: item.order,
+          folder_id: item.folder_id,
+          icon: item.icon,
+          userId,
+        },
+      });
+      console.log(`Item ${item.name} added for user ${userId}`);
+    }
+
+    broadcastToRoom(userId, { type: 'add_item', item });
   };
 
-  const handleAddFolder = (userId: string, folder: Folder) => {
-    // Logic to save folder to the database
-    broadcastToRoom(userId, { type: "add_folder", item_type: 'folder', folder });
+  const handleAddFolder = async (userId: string, folder: Folder) => {
+    let existingFolder = await prisma.folder.findUnique({
+      where: { id: folder.id },
+    });
+
+    if (!existingFolder) {
+      await prisma.folder.create({
+        data: {
+          id: folder.id,
+          name: folder.name,
+          userId,
+          folder_id: folder.folder_id,
+          order: folder.order,
+        },
+      });
+      console.log(`Folder ${folder.name} added for user ${userId}`);
+    }
+
+    broadcastToRoom(userId, { type: 'add_folder', folder });
   };
 
-  const handleMoveItem = (userId: string,  itemId: string, folderId: string | null, newOrder: number ) => {
-    // Logic to update item's folder and order
-    broadcastToRoom(userId, { type: "move_item", itemId, folderId, newOrder });
+  const handleMoveItem = async (
+    userId: string,
+    itemId: string,
+    folderId: string | null,
+    newOrder: number
+  ) => {
+    let existingFolder = await prisma.folder.findUnique({
+      where: { id: itemId },
+    });
+    if (existingFolder) {
+      await prisma.folder.update({
+        where: { id: itemId },
+        data: {
+          folder_id: folderId,
+          order: newOrder,
+        },
+      });
+    } else {
+      await prisma.item.update({
+        where: { id: itemId },
+        data: {
+          folder_id: folderId,
+          order: newOrder,
+        },
+      });
+    }
+    console.log(`Item ${itemId} moved to folder ${folderId} for user ${userId}`);
+    broadcastToRoom(userId, { type: 'move_item', itemId, folderId, newOrder });
   };
-
 
   const cleanUpUserRooms = (ws: WebSocket) => {
     for (const userId in userRooms) {

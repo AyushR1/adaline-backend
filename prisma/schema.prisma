@@ -20,42 +20,43 @@ model User {
 }
 
 model Folder {
-  id             String   @id @default(uuid()) @db.Uuid
-  name           String
-  order          Int?     @default(0)
-
-  parentFolderId String?  @db.Uuid
-  parentFolder   Folder?  @relation("FolderParent", fields: [parentFolderId], references: [id])
-
-  subFolders     Folder[] @relation("FolderParent")
-
-  userId         String   @db.Uuid
-  user           User     @relation(fields: [userId], references: [id])
-
-  items          Item[]
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([userId])
-  @@index([parentFolderId])
-}
-
-model Item {
-  id        String  @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
   name      String
-  order     Int?    @default(0)
+  order     Decimal? @default(0)
+  collapsed Boolean  @default(false)
 
-  folderId  String? @db.Uuid
-  folder    Folder? @relation(fields: [folderId], references: [id])
+  folder_id String? @db.Uuid
+  folder    Folder? @relation("FolderParent", fields: [folder_id], references: [id])
 
-  icon      String
-  userId    String  @db.Uuid
-  user      User    @relation(fields: [userId], references: [id])
+  subFolders Folder[] @relation("FolderParent")
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+
+  items Item[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([folderId])
+  @@index([userId])
+  @@index([folder_id])
+}
+
+model Item {
+  id    String   @id @default(uuid()) @db.Uuid
+  name  String
+  order Decimal? @default(0)
+
+  folder_id String? @db.Uuid
+  folder    Folder? @relation(fields: [folder_id], references: [id])
+
+  icon   String
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folder_id])
   @@index([userId])
 }
