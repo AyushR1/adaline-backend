@@ -1,6 +1,10 @@
 import { Server } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { prisma } from './utlis/prisma';
+import Redis from 'ioredis';
+
+const redisPub = new Redis(); // Publisher
+const redisSub = new Redis(); // Subscriber
 
 type UserRoom = {
   [userId: string]: WebSocket[];
@@ -28,6 +32,16 @@ const userRooms: Record<string, WebSocket[]> = {};
 
 export const setupWebSocket = (server: Server) => {
   const wss = new WebSocketServer({ server });
+
+  // Subscribe to Redis channel
+  redisSub.on('message', (channel, message) => {
+    const { userId, data } = JSON.parse(message);
+
+    if (channel === 'userUpdates' && userRooms[userId]) {
+      broadcastToRoom(userId, data);
+    }
+  });
+  redisSub.subscribe('userUpdates');
 
   wss.on('connection', (ws: WebSocket) => {
     console.log('Client connected.');
@@ -113,7 +127,8 @@ export const setupWebSocket = (server: Server) => {
       console.log(`Item ${item.name} added for user ${userId}`);
     }
 
-    broadcastToRoom(userId, { type: 'add_item', item });
+    const message = { type: 'add_item', item };
+    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
   };
 
   const handleAddFolder = async (userId: string, folder: Folder) => {
@@ -134,7 +149,8 @@ export const setupWebSocket = (server: Server) => {
       console.log(`Folder ${folder.name} added for user ${userId}`);
     }
 
-    broadcastToRoom(userId, { type: 'add_folder', folder });
+    const message = { type: 'add_folder', folder };
+    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
   };
 
   const handleMoveItem = async (
@@ -164,7 +180,8 @@ export const setupWebSocket = (server: Server) => {
       });
     }
     console.log(`Item ${itemId} moved to folder ${folderId} for user ${userId}`);
-    broadcastToRoom(userId, { type: 'move_item', itemId, folderId, newOrder });
+    const message = { type: 'move_item', itemId, folderId, newOrder };
+    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
   };
 
   const cleanUpUserRooms = (ws: WebSocket) => {
