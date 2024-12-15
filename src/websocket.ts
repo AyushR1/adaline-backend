@@ -48,7 +48,7 @@ export const setupWebSocket = (server: Server) => {
 
     ws.on('message', async (data) => {
       const message = JSON.parse(data.toString());
-      const { type, userId, item, folder, itemId, folderId, newOrder } =
+      const { type, userId, item, folder, itemId, folderId, newOrder, collapsed } =
         message;
 
       switch (type) {
@@ -66,6 +66,10 @@ export const setupWebSocket = (server: Server) => {
 
         case 'move_item':
           await handleMoveItem(userId, itemId, folderId, newOrder);
+          break;
+        
+        case 'edit_item':
+          await handleEditItem(userId, itemId, collapsed);
           break;
 
         default:
@@ -159,6 +163,7 @@ export const setupWebSocket = (server: Server) => {
     folderId: string | null,
     newOrder: number
   ) => {
+    console.log('aaaaaaaaaaaa')
     let existingFolder = await prisma.folder.findUnique({
       where: { id: itemId },
     });
@@ -184,6 +189,24 @@ export const setupWebSocket = (server: Server) => {
     await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
   };
 
+  const handleEditItem = async (userId: string, itemId: string, collapsed: boolean ) => {
+    console.log('aaaaaaaaaaaa')
+    console.log(userId, itemId, collapsed)
+    let existingFolder = await prisma.folder.findUnique({
+      where: { id: itemId },
+    });
+    if (existingFolder) {
+      await prisma.folder.update({
+        where: { id: itemId },
+        data: {
+          collapsed
+        },
+      });
+    }
+    console.log(`Item ${itemId} edited for user ${userId}`);
+    const message = { type: 'edit_item', itemId, collapsed };
+    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
+  }
   const cleanUpUserRooms = (ws: WebSocket) => {
     for (const userId in userRooms) {
       userRooms[userId] = userRooms[userId].filter((socket) => socket !== ws);
