@@ -1,25 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utlis/prisma';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Folder } from '../types';
 
-interface Item {
-  id: string;
-  name: string;
-  icon: string;
-  order?: Decimal | Number | null;
-  item_type: string;
-}
-
-interface Folder {
-  id: string;
-  name: string;
-  order?: Decimal | Number |  null;
-  userId?: string;
-  collapsed?: boolean;
-  folder_id?: string | null;
-  children?: Folder[] | Item[] | null | undefined;
-  item_type?: string;
-}
 
 const buildFolderHierarchy = async (
   folderId: string | null,

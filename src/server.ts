@@ -20,6 +20,8 @@ const server = createServer(app);
 
 // Initialize WebSocket server
 setupWebSocket(server);
+
+// Routes
 app.use('/items', itemRoutes);
 
 // Start server

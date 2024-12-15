@@ -1,33 +1,11 @@
 import { Server } from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
 import { prisma } from './utlis/prisma';
+import type { Item, Folder } from './types';
 import Redis from 'ioredis';
 
 const redisPub = new Redis(); // Publisher
 const redisSub = new Redis(); // Subscriber
-
-type UserRoom = {
-  [userId: string]: WebSocket[];
-};
-
-export type Item = {
-  id: string;
-  name: string;
-  icon: string;
-  order: number;
-  folder_id: string | null;
-  userId: string;
-  item_type?: string;
-};
-
-export type Folder = {
-  id: string;
-  name: string;
-  order: number;
-  folder_id: string | null;
-  userId: string;
-};
-
 const userRooms: Record<string, WebSocket[]> = {};
 
 export const setupWebSocket = (server: Server) => {
@@ -48,8 +26,16 @@ export const setupWebSocket = (server: Server) => {
 
     ws.on('message', async (data) => {
       const message = JSON.parse(data.toString());
-      const { type, userId, item, folder, itemId, folderId, newOrder, collapsed } =
-        message;
+      const {
+        type,
+        userId,
+        item,
+        folder,
+        itemId,
+        folderId,
+        newOrder,
+        collapsed,
+      } = message;
 
       switch (type) {
         case 'join':
@@ -67,7 +53,7 @@ export const setupWebSocket = (server: Server) => {
         case 'move_item':
           await handleMoveItem(userId, itemId, folderId, newOrder);
           break;
-        
+
         case 'edit_item':
           await handleEditItem(userId, itemId, collapsed);
           break;
@@ -132,7 +118,10 @@ export const setupWebSocket = (server: Server) => {
     }
 
     const message = { type: 'add_item', item };
-    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
+    await redisPub.publish(
+      'userUpdates',
+      JSON.stringify({ userId, data: message })
+    );
   };
 
   const handleAddFolder = async (userId: string, folder: Folder) => {
@@ -154,7 +143,10 @@ export const setupWebSocket = (server: Server) => {
     }
 
     const message = { type: 'add_folder', folder };
-    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
+    await redisPub.publish(
+      'userUpdates',
+      JSON.stringify({ userId, data: message })
+    );
   };
 
   const handleMoveItem = async (
@@ -163,7 +155,7 @@ export const setupWebSocket = (server: Server) => {
     folderId: string | null,
     newOrder: number
   ) => {
-    console.log('aaaaaaaaaaaa')
+    console.log('aaaaaaaaaaaa');
     let existingFolder = await prisma.folder.findUnique({
       where: { id: itemId },
     });
@@ -179,8 +171,8 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     } else {
-      console.log('aaaaaaaaaaaa')
-      console.log(itemId, folderId, newOrder)
+      console.log('aaaaaaaaaaaa');
+      console.log(itemId, folderId, newOrder);
       await prisma.item.update({
         where: { id: itemId },
         data: {
@@ -189,14 +181,21 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     }
-    console.log(`Item ${itemId} moved to folder ${folderId} for user ${userId}`);
+    console.log(
+      `Item ${itemId} moved to folder ${folderId} for user ${userId}`
+    );
     const message = { type: 'move_item', itemId, folderId, newOrder };
-    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
+    await redisPub.publish(
+      'userUpdates',
+      JSON.stringify({ userId, data: message })
+    );
   };
 
-  const handleEditItem = async (userId: string, itemId: string, collapsed: boolean ) => {
-    console.log('aaaaaaaaaaaa')
-    console.log(userId, itemId, collapsed)
+  const handleEditItem = async (
+    userId: string,
+    itemId: string,
+    collapsed: boolean
+  ) => {
     let existingFolder = await prisma.folder.findUnique({
       where: { id: itemId },
     });
@@ -204,14 +203,17 @@ export const setupWebSocket = (server: Server) => {
       await prisma.folder.update({
         where: { id: itemId },
         data: {
-          collapsed
+          collapsed,
         },
       });
     }
     console.log(`Item ${itemId} edited for user ${userId}`);
     const message = { type: 'edit_item', itemId, collapsed };
-    await redisPub.publish('userUpdates', JSON.stringify({ userId, data: message }));
-  }
+    await redisPub.publish(
+      'userUpdates',
+      JSON.stringify({ userId, data: message })
+    );
+  };
   const cleanUpUserRooms = (ws: WebSocket) => {
     for (const userId in userRooms) {
       userRooms[userId] = userRooms[userId].filter((socket) => socket !== ws);
