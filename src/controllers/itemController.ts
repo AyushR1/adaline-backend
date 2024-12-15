@@ -86,7 +86,8 @@ export const getItem = async (req: Request, res: Response): Promise<void> => {
       ...item,
       item_type: 'item',
       collapsed: false,
-      childern: [],
+      order: item.order ? new Number(item.order) : null,
+      children: [],
     }));
     console.log('itemsWithItemType', itemsWithItemType);
     res.status(200).json([...hierarchy, ...itemsWithItemType]);
