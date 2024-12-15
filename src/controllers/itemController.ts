@@ -71,10 +71,8 @@ export const getItem = async (req: Request, res: Response): Promise<void> => {
       order: item.order ? new Number(item.order) : null,
       children: [],
     }));
-    console.log('itemsWithItemType', itemsWithItemType);
     res.status(200).json([...hierarchy, ...itemsWithItemType]);
   } catch (error) {
-    console.error('Error fetching hierarchy:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

@@ -22,8 +22,6 @@ export const setupWebSocket = (server: Server) => {
   redisSub.subscribe('userUpdates');
 
   wss.on('connection', (ws: WebSocket) => {
-    console.log('Client connected.');
-
     ws.on('message', async (data) => {
       const message = JSON.parse(data.toString());
       const {
@@ -64,7 +62,6 @@ export const setupWebSocket = (server: Server) => {
     });
 
     ws.on('close', () => {
-      console.log('Client disconnected.');
       cleanUpUserRooms(ws);
     });
   });
@@ -88,14 +85,12 @@ export const setupWebSocket = (server: Server) => {
           id: userId,
         },
       });
-      console.log(`User ${userId} created.`);
     }
 
     if (!userRooms[userId]) {
       userRooms[userId] = [];
     }
     userRooms[userId].push(ws);
-    console.log(`User ${userId} joined.`);
   };
 
   const handleAddItem = async (userId: string, item: Item) => {
@@ -114,7 +109,6 @@ export const setupWebSocket = (server: Server) => {
           userId,
         },
       });
-      console.log(`Item ${item.name} added for user ${userId}`);
     }
 
     const message = { type: 'add_item', item };
@@ -139,7 +133,6 @@ export const setupWebSocket = (server: Server) => {
           order: folder.order,
         },
       });
-      console.log(`Folder ${folder.name} added for user ${userId}`);
     }
 
     const message = { type: 'add_folder', folder };
@@ -155,7 +148,6 @@ export const setupWebSocket = (server: Server) => {
     folderId: string | null,
     newOrder: number
   ) => {
-    console.log('aaaaaaaaaaaa');
     let existingFolder = await prisma.folder.findUnique({
       where: { id: itemId },
     });
@@ -171,8 +163,6 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     } else {
-      console.log('aaaaaaaaaaaa');
-      console.log(itemId, folderId, newOrder);
       await prisma.item.update({
         where: { id: itemId },
         data: {
@@ -181,9 +171,6 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     }
-    console.log(
-      `Item ${itemId} moved to folder ${folderId} for user ${userId}`
-    );
     const message = { type: 'move_item', itemId, folderId, newOrder };
     await redisPub.publish(
       'userUpdates',
@@ -207,7 +194,6 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     }
-    console.log(`Item ${itemId} edited for user ${userId}`);
     const message = { type: 'edit_item', itemId, collapsed };
     await redisPub.publish(
       'userUpdates',
