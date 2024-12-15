@@ -167,6 +167,9 @@ export const setupWebSocket = (server: Server) => {
     let existingFolder = await prisma.folder.findUnique({
       where: { id: itemId },
     });
+    if (folderId === undefined) {
+      folderId = null;
+    }
     if (existingFolder) {
       await prisma.folder.update({
         where: { id: itemId },
@@ -176,6 +179,8 @@ export const setupWebSocket = (server: Server) => {
         },
       });
     } else {
+      console.log('aaaaaaaaaaaa')
+      console.log(itemId, folderId, newOrder)
       await prisma.item.update({
         where: { id: itemId },
         data: {
